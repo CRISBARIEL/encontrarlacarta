@@ -14,6 +14,7 @@ export const Shop = ({ onClose, onSkinChanged }: ShopProps) => {
   const [ownedSkinsIds, setOwnedSkinsIds] = useState<string[]>(['default']);
   const [ownedCount, setOwnedCount] = useState(1);
   const [loading, setLoading] = useState(true);
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadThemes = async () => {
@@ -33,27 +34,55 @@ export const Shop = ({ onClose, onSkinChanged }: ShopProps) => {
   }, []);
 
   const handleBuy = async (skin: Skin) => {
+    if (processingId) return;
+
     if (coins < skin.price) {
       alert('No tienes suficientes monedas');
       return;
     }
 
-    if (spendCoins(skin.price)) {
-      const success = await ownTheme(skin.id);
-      if (success) {
+    setProcessingId(skin.id);
+
+    try {
+      if (spendCoins(skin.price)) {
         setCoins(getLocalCoins());
-        setOwnedSkinsIds([...ownedSkinsIds, skin.id]);
-        setOwnedCount(ownedCount + 1);
-        alert(`¡${skin.name} comprado! (Cosmético, no otorga monedas)`);
+
+        const success = await ownTheme(skin.id);
+        if (success) {
+          const newOwned = [...ownedSkinsIds, skin.id];
+          setOwnedSkinsIds(newOwned);
+          setOwnedCount(newOwned.length);
+
+          await equipThemeDB(skin.id);
+          setEquippedSkinId(skin.id);
+          onSkinChanged();
+        } else {
+          alert('Error al guardar el tema. Intenta de nuevo.');
+        }
       }
+    } catch (error) {
+      console.error('Error en compra:', error);
+      alert('Error al procesar la compra');
+    } finally {
+      setProcessingId(null);
     }
   };
 
   const handleEquip = async (skinId: string) => {
-    const success = await equipThemeDB(skinId);
-    if (success) {
-      setEquippedSkinId(skinId);
-      onSkinChanged();
+    if (processingId) return;
+
+    setProcessingId(skinId);
+
+    try {
+      const success = await equipThemeDB(skinId);
+      if (success) {
+        setEquippedSkinId(skinId);
+        onSkinChanged();
+      }
+    } catch (error) {
+      console.error('Error al equipar:', error);
+    } finally {
+      setProcessingId(null);
     }
   };
 
@@ -63,6 +92,7 @@ export const Shop = ({ onClose, onSkinChanged }: ShopProps) => {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-800">Tienda de Temas</h2>
           <button
+            type="button"
             onClick={onClose}
             className="p-2 hover:bg-gray-100 rounded-full transition-colors"
           >
@@ -130,20 +160,23 @@ export const Shop = ({ onClose, onSkinChanged }: ShopProps) => {
                             </div>
                           ) : (
                             <button
+                              type="button"
                               onClick={() => handleEquip(skin.id)}
-                              className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors"
+                              disabled={processingId === skin.id}
+                              className="bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                             >
-                              Equipar
+                              {processingId === skin.id ? 'Procesando...' : 'Equipar'}
                             </button>
                           )
                         ) : (
                           <button
+                            type="button"
                             onClick={() => handleBuy(skin)}
-                            disabled={coins < skin.price}
+                            disabled={coins < skin.price || processingId === skin.id}
                             className="bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-yellow-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                           >
                             <Lock size={16} />
-                            Comprar
+                            {processingId === skin.id ? 'Comprando...' : 'Comprar'}
                           </button>
                         )}
                       </div>
@@ -156,6 +189,7 @@ export const Shop = ({ onClose, onSkinChanged }: ShopProps) => {
         </div>
 
         <button
+          type="button"
           onClick={onClose}
           className="mt-4 w-full bg-gray-500 text-white py-3 rounded-xl font-semibold hover:bg-gray-600 transition-colors"
         >

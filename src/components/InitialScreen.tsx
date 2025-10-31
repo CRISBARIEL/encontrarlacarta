@@ -81,6 +81,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
         </div>
 
         <button
+          type="button"
           onClick={() => setShowShop(true)}
           className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-3 rounded-xl font-semibold hover:shadow-lg transition-all flex items-center justify-center gap-2 mb-6"
         >
@@ -96,6 +97,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
             <div className="grid grid-cols-5 gap-2">
               {[1, 2, 3, 4, 5].map((level) => (
                 <button
+                  type="button"
                   key={level}
                   onClick={() => setSelectedLevel(level)}
                   className={`py-3 px-4 rounded-xl font-bold transition-all ${
@@ -128,6 +130,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
           </div>
 
           <button
+            type="button"
             onClick={() => onStartGame(selectedLevel)}
             className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
           >
@@ -135,6 +138,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
           </button>
 
           <button
+            type="button"
             onClick={onStartDailyChallenge}
             className="w-full bg-gradient-to-r from-amber-500 to-orange-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2"
           >
@@ -143,6 +147,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
           </button>
 
           <button
+            type="button"
             onClick={onStartDuel}
             className="w-full bg-gradient-to-r from-red-500 to-pink-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 flex items-center justify-center gap-2"
           >
@@ -169,6 +174,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
               </div>
             </div>
             <button
+              type="button"
               onClick={handleClaimDaily}
               className="w-full bg-gradient-to-r from-yellow-500 to-amber-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
             >

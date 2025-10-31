@@ -1,0 +1,410 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { RotateCcw, Share2, Trophy, List, ArrowLeft } from 'lucide-react';
+// removed custom photo feature
+import { GameCard } from './GameCard';
+import { Leaderboard } from './Leaderboard';
+import { Card, LEVEL_TIME_LIMITS, PREVIEW_TIME, FLIP_DELAY, PAIRS_PER_LEVEL, GameMetrics, BestScore } from '../types';
+import { getImagesForLevel } from '../utils/imageManager';
+import { createConfetti } from '../utils/confetti';
+import { getSeedFromURLorToday, shuffleWithSeed } from '../lib/seed';
+import { submitScoreAndReward, getCrewIdFromURL, setCrewIdInURL } from '../lib/api';
+import { addCoins } from '../lib/progression';
+
+interface GameCoreProps {
+  level: number;
+  onComplete: () => void;
+  onBackToMenu: () => void;
+  isDailyChallenge?: boolean;
+  // removed custom photo feature
+}
+
+export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = false }: GameCoreProps) => {
+  const [cards, setCards] = useState<Card[]>([]);
+  const [flippedCards, setFlippedCards] = useState<number[]>([]);
+  const [matchedPairs, setMatchedPairs] = useState(0);
+  const [isPreview, setIsPreview] = useState(true);
+  const [timeLeft, setTimeLeft] = useState(LEVEL_TIME_LIMITS[level as keyof typeof LEVEL_TIME_LIMITS]);
+  const [gameOver, setGameOver] = useState(false);
+  const [moves, setMoves] = useState(0);
+  const [timeElapsed, setTimeElapsed] = useState(0);
+  const [showWinModal, setShowWinModal] = useState(false);
+  const [bestScore, setBestScore] = useState<BestScore | null>(null);
+  const [seed] = useState(() => isDailyChallenge ? getSeedFromURLorToday() : `random-${Date.now()}`);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [isPioneer, setIsPioneer] = useState(false);
+  const [crewId, setCrewId] = useState(() => getCrewIdFromURL());
+  const [finalTime, setFinalTime] = useState(0);
+  const [finalMoves, setFinalMoves] = useState(0);
+
+  const isCheckingRef = useRef(false);
+  const timerRef = useRef<number | null>(null);
+  const previewTimerRef = useRef<number | null>(null);
+  const elapsedTimerRef = useRef<number | null>(null);
+  const gameStartTimeRef = useRef<number>(0);
+
+  const initializeLevel = useCallback(() => {
+    console.log('[GameCore] initializeLevel', { level, seed });
+    const levelImages = getImagesForLevel(level);
+    const cardPairs = levelImages.flatMap((img, idx) => [
+      { id: idx * 2, imageIndex: idx, isFlipped: false, isMatched: false },
+      { id: idx * 2 + 1, imageIndex: idx, isFlipped: false, isMatched: false },
+    ]);
+
+    const shuffled = isDailyChallenge ? shuffleWithSeed(cardPairs, seed) : cardPairs.sort(() => Math.random() - 0.5);
+    setCards(shuffled);
+    setFlippedCards([]);
+    setMatchedPairs(0);
+    setIsPreview(true);
+    setGameOver(false);
+    setTimeLeft(LEVEL_TIME_LIMITS[level as keyof typeof LEVEL_TIME_LIMITS]);
+    setMoves(0);
+    setTimeElapsed(0);
+    setShowWinModal(false);
+    gameStartTimeRef.current = 0;
+
+    if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    previewTimerRef.current = window.setTimeout(() => {
+      setIsPreview(false);
+    }, PREVIEW_TIME * 1000);
+    if (isDailyChallenge) {
+      const stored = localStorage.getItem(`best:${seed}`);
+      if (stored) {
+        try {
+          setBestScore(JSON.parse(stored));
+        } catch (e) {
+          setBestScore(null);
+        }
+      } else {
+        setBestScore(null);
+      }
+    }
+  }, [level, seed, isDailyChallenge]);
+
+  useEffect(() => {
+    console.log('[GameCore] mount for level', level);
+    initializeLevel();
+
+    return () => {
+      console.log('[GameCore] unmount for level', level);
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+    };
+  }, [level, initializeLevel]);
+
+  useEffect(() => {
+    if (isPreview || gameOver) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+      return;
+    }
+
+    if (gameStartTimeRef.current === 0) {
+      gameStartTimeRef.current = Date.now();
+    }
+
+    timerRef.current = window.setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          if (timerRef.current) clearInterval(timerRef.current);
+          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+          setGameOver(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    elapsedTimerRef.current = window.setInterval(() => {
+      setTimeElapsed(Math.floor((Date.now() - gameStartTimeRef.current) / 1000));
+    }, 100);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+    };
+  }, [isPreview, gameOver]);
+
+  useEffect(() => {
+    if (matchedPairs === PAIRS_PER_LEVEL && matchedPairs > 0) {
+      console.log('[GameCore] LEVEL COMPLETED', { level, matchedPairs, moves, timeElapsed });
+      if (timerRef.current) clearInterval(timerRef.current);
+      if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+      createConfetti();
+
+      if (isDailyChallenge) {
+        const finalTimeValue = Math.floor((Date.now() - gameStartTimeRef.current) / 1000);
+        setTimeElapsed(finalTimeValue);
+        setFinalTime(finalTimeValue);
+        setFinalMoves(moves);
+
+        const stored = localStorage.getItem(`best:${seed}`);
+        let shouldSave = true;
+        if (stored) {
+          try {
+            const prev: BestScore = JSON.parse(stored);
+            if (finalTimeValue > prev.time || (finalTimeValue === prev.time && moves >= prev.moves)) {
+              shouldSave = false;
+            }
+          } catch (e) {
+            //
+          }
+        }
+
+        if (shouldSave) {
+          const newBest: BestScore = { time: finalTimeValue, moves, date: new Date().toISOString() };
+          localStorage.setItem(`best:${seed}`, JSON.stringify(newBest));
+          setBestScore(newBest);
+        }
+
+        submitScoreAndReward({ seed, timeMs: finalTimeValue * 1000, moves, crewId }).then((result) => {
+          if (result.isPioneer) {
+            setIsPioneer(true);
+          }
+        }).catch((err) => {
+          console.error('[GameCore] Failed to submit score:', err);
+        });
+
+        addCoins(10);
+
+        setShowWinModal(true);
+      } else {
+        addCoins(10);
+        onComplete();
+      }
+    }
+  }, [matchedPairs, level, onComplete, isDailyChallenge, moves, seed, timeElapsed]);
+
+  const handleCardClick = useCallback((id: number) => {
+    if (isPreview || isCheckingRef.current || flippedCards.length >= 2) return;
+
+    const card = cards.find((c) => c.id === id);
+    if (!card || card.isMatched || flippedCards.includes(id)) return;
+
+    const newFlipped = [...flippedCards, id];
+    setFlippedCards(newFlipped);
+
+    setCards((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, isFlipped: true } : c))
+    );
+
+    if (newFlipped.length === 2) {
+      isCheckingRef.current = true;
+      setMoves((prev) => prev + 1);
+
+      const [firstId, secondId] = newFlipped;
+      const firstCard = cards.find((c) => c.id === firstId);
+      const secondCard = cards.find((c) => c.id === secondId);
+
+      if (firstCard && secondCard && firstCard.imageIndex === secondCard.imageIndex) {
+        setCards((prev) =>
+          prev.map((c) =>
+            c.id === firstId || c.id === secondId ? { ...c, isMatched: true } : c
+          )
+        );
+        setMatchedPairs((prev) => prev + 1);
+        setFlippedCards([]);
+        isCheckingRef.current = false;
+      } else {
+        setTimeout(() => {
+          setCards((prev) =>
+            prev.map((c) =>
+              c.id === firstId || c.id === secondId
+                ? { ...c, isFlipped: false }
+                : c
+            )
+          );
+          setFlippedCards([]);
+          isCheckingRef.current = false;
+        }, FLIP_DELAY);
+      }
+    }
+  }, [cards, flippedCards, isPreview]);
+
+  const handleRestart = useCallback(() => {
+    initializeLevel();
+  }, [initializeLevel]);
+
+  const handleShare = useCallback(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set('seed', seed);
+    url.searchParams.set('time', finalTime.toString());
+    url.searchParams.set('moves', finalMoves.toString());
+
+    let currentCrewId = crewId;
+    if (!currentCrewId) {
+      const newCrewId = crypto.randomUUID().slice(0, 8);
+      url.searchParams.set('crew', newCrewId);
+      setCrewIdInURL(newCrewId);
+      setCrewId(newCrewId);
+      currentCrewId = newCrewId;
+    } else {
+      url.searchParams.set('crew', currentCrewId);
+    }
+
+    const shareUrl = url.toString();
+
+    const shareText = `¡Completé el reto diario en ${finalTime}s con ${finalMoves} movimientos! ¿Puedes superarme?`;
+
+    if (navigator.share) {
+      navigator.share({
+        title: 'Reto de Memoria Diario',
+        text: shareText,
+        url: shareUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(`${shareText}\n${shareUrl}`).then(() => {
+        alert('¡Enlace copiado al portapapeles!');
+      });
+    }
+  }, [seed, finalTime, finalMoves, crewId]);
+
+  const levelImages = getImagesForLevel(level);
+  // removed custom photo feature
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 flex flex-col p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-4 mb-4">
+        {isDailyChallenge && (
+          <div className="mb-3 text-sm text-gray-600 flex items-center justify-between">
+            <span>Reto: {seed}</span>
+            {bestScore && (
+              <span className="flex items-center gap-1">
+                <Trophy size={14} className="text-yellow-500" />
+                Mejor: {bestScore.time}s, {bestScore.moves} mov
+              </span>
+            )}
+          </div>
+        )}
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-bold text-gray-800">
+            {isDailyChallenge ? 'Reto Diario' : `Nivel ${level}`}
+          </h2>
+          <div className={`text-2xl font-bold ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-blue-600'}`}>
+            {isPreview ? `Preview: ${Math.max(0, Math.ceil(timeLeft - (LEVEL_TIME_LIMITS[level as keyof typeof LEVEL_TIME_LIMITS] - PREVIEW_TIME)))}s` : `${timeLeft}s`}
+          </div>
+        </div>
+        {isDailyChallenge && (
+          <div className="flex gap-4 mb-3 text-sm font-semibold text-gray-700">
+            <span>Tiempo: {timeElapsed}s</span>
+            <span>Movimientos: {moves}</span>
+          </div>
+        )}
+
+        <div className="flex gap-2">
+          <button
+            onClick={onBackToMenu}
+            className="bg-gray-500 text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors"
+          >
+            <ArrowLeft size={18} />
+            Volver
+          </button>
+          <button
+            onClick={handleRestart}
+            className="flex-1 bg-orange-500 text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-orange-600 transition-colors"
+          >
+            <RotateCcw size={18} />
+            Reiniciar
+          </button>
+          {isDailyChallenge && (
+            <button
+              onClick={() => setShowLeaderboard(true)}
+              className="flex-1 bg-yellow-500 text-white py-2 px-4 rounded-lg font-semibold flex items-center justify-center gap-2 hover:bg-yellow-600 transition-colors"
+            >
+              <List size={18} />
+              Top
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex-1 flex items-center justify-center">
+        <div className="w-full max-w-lg">
+          <div className="grid grid-cols-4 gap-3">
+            {cards.map((card) => (
+              <GameCard
+                key={card.id}
+                card={{ ...card, isFlipped: isPreview || card.isFlipped }}
+                image={levelImages[card.imageIndex]}
+                onClick={handleCardClick}
+                disabled={isPreview || isCheckingRef.current}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {gameOver && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="text-6xl mb-4">😢</div>
+            <h3 className="text-3xl font-bold text-red-600 mb-2">Game Over</h3>
+            <p className="text-gray-600 mb-6">Se acabó el tiempo</p>
+            <button
+              onClick={handleRestart}
+              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
+            >
+              Reintentar Nivel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showWinModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <div className="text-6xl mb-4">🎉</div>
+            <h3 className="text-3xl font-bold text-green-600 mb-4">¡Completado!</h3>
+
+            {isPioneer && (
+              <div className="bg-gradient-to-r from-yellow-400 to-amber-500 rounded-xl p-4 mb-4">
+                <div className="text-3xl mb-2">🏆</div>
+                <div className="text-white font-bold text-lg">¡Medalla Pionero!</div>
+                <div className="text-yellow-100 text-sm">+20 monedas por ser el primero</div>
+              </div>
+            )}
+
+            <div className="bg-gray-100 rounded-xl p-4 mb-6">
+              <div className="flex justify-around text-center">
+                <div>
+                  <div className="text-2xl font-bold text-blue-600">{finalTime}s</div>
+                  <div className="text-xs text-gray-600">Tiempo</div>
+                </div>
+                <div>
+                  <div className="text-2xl font-bold text-purple-600">{finalMoves}</div>
+                  <div className="text-xs text-gray-600">Movimientos</div>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleShare}
+                className="flex-1 bg-blue-500 text-white py-3 rounded-xl font-semibold flex items-center justify-center gap-2 hover:bg-blue-600 transition-colors"
+              >
+                <Share2 size={18} />
+                Compartir
+              </button>
+              <button
+                onClick={handleRestart}
+                className="flex-1 bg-green-500 text-white py-3 rounded-xl font-semibold hover:bg-green-600 transition-colors"
+              >
+                Reintentar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showLeaderboard && (
+        <Leaderboard
+          seed={seed}
+          onClose={() => setShowLeaderboard(false)}
+          onPlayNow={() => {
+            setShowLeaderboard(false);
+            handleRestart();
+          }}
+        />
+      )}
+    </div>
+  );
+};

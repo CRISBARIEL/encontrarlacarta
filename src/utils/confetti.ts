@@ -1,4 +1,8 @@
+import { playSoundConfetti } from './soundManager';
+
 export const createConfetti = () => {
+  playSoundConfetti();
+
   const duration = 3000;
   const animationEnd = Date.now() + duration;
   const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 9999 };

@@ -1,6 +1,7 @@
 import { Card } from '../types';
 import { getSkinById, getDefaultSkin } from '../lib/skins';
 import { getEquippedSkin } from '../lib/progression';
+import { playSoundFlip } from '../utils/soundManager';
 // removed custom photo feature
 
 interface GameCardProps {
@@ -16,6 +17,7 @@ export const GameCard = ({ card, image, onClick, disabled }: GameCardProps) => {
 
   const handleClick = () => {
     if (!disabled && !card.isFlipped && !card.isMatched) {
+      playSoundFlip();
       onClick(card.id);
     }
   };

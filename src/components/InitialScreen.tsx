@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Calendar, Swords, ShoppingBag, Gift, Coins, Palette } from 'lucide-react';
 // removed custom photo feature
 import { canClaimDaily, claimDailyReward, getLocalCoins, loadFromSupabase } from '../lib/progression';
 import { Shop } from './Shop';
 import { getEquippedTheme, getSkinById } from '../lib/skins';
+import { playSoundZap } from '../utils/soundManager';
 
 interface InitialScreenProps {
   onStartGame: (level: number) => void;
@@ -19,6 +20,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
   const [coins, setCoins] = useState(0);
   const [showDailyReward, setShowDailyReward] = useState(false);
   const [equippedThemeName, setEquippedThemeName] = useState('Clásico');
+  const logoPlayedRef = useRef(false);
   // removed custom photo feature
 
   useEffect(() => {
@@ -36,6 +38,13 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
         setEquippedThemeName(skin.name);
       }
     });
+
+    if (!logoPlayedRef.current) {
+      setTimeout(() => {
+        playSoundZap();
+      }, 300);
+      logoPlayedRef.current = true;
+    }
   }, []);
 
   // removed custom photo feature

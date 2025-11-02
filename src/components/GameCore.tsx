@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { RotateCcw, Share2, Trophy, List, ArrowLeft } from 'lucide-react';
 import { GameCard } from './GameCard';
 import { Leaderboard } from './Leaderboard';
+import { PowerUpButtons } from './PowerUpButtons';
 import { Card, PREVIEW_TIME, FLIP_DELAY, GameMetrics, BestScore } from '../types';
 import { createConfetti } from '../utils/confetti';
 import { getSeedFromURLorToday, shuffleWithSeed } from '../lib/seed';
@@ -38,6 +39,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
   const [finalMoves, setFinalMoves] = useState(0);
   const [hintCards, setHintCards] = useState<number[]>([]);
   const [consecutiveMisses, setConsecutiveMisses] = useState(0);
+  const [powerUpUsed, setPowerUpUsed] = useState(false);
 
   const isCheckingRef = useRef(false);
   const timerRef = useRef<number | null>(null);
@@ -74,6 +76,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
     setShowWinModal(false);
     setHintCards([]);
     setConsecutiveMisses(0);
+    setPowerUpUsed(false);
     gameStartTimeRef.current = 0;
 
     if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
@@ -270,6 +273,39 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
     }
   }, [consecutiveMisses, isPreview, gameOver, cards, hintCards.length]);
 
+  const handlePowerUp = useCallback((percentage: number) => {
+    const unmatchedCards = cards.filter(c => !c.isMatched);
+    const totalPairs = unmatchedCards.length / 2;
+    const pairsToReveal = Math.max(1, Math.floor(totalPairs * (percentage / 100)));
+
+    const pairsByImage = new Map<number, number[]>();
+    unmatchedCards.forEach(card => {
+      if (!pairsByImage.has(card.imageIndex)) {
+        pairsByImage.set(card.imageIndex, []);
+      }
+      pairsByImage.get(card.imageIndex)!.push(card.id);
+    });
+
+    const availablePairs = Array.from(pairsByImage.entries()).filter(([, ids]) => ids.length === 2);
+    const pairsToMatch = availablePairs.slice(0, pairsToReveal);
+
+    const cardIdsToMatch: number[] = [];
+    pairsToMatch.forEach(([, ids]) => {
+      cardIdsToMatch.push(...ids);
+    });
+
+    setCards(prev => prev.map(c => {
+      if (cardIdsToMatch.includes(c.id)) {
+        return { ...c, isFlipped: true, isMatched: true };
+      }
+      return c;
+    }));
+
+    setMatchedPairs(prev => prev + pairsToMatch.length);
+    setPowerUpUsed(true);
+    createConfetti();
+  }, [cards]);
+
   const handleRestart = useCallback(() => {
     initializeLevel();
   }, [initializeLevel]);
@@ -369,6 +405,23 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
             </button>
           )}
         </div>
+
+        {!isDailyChallenge && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <div className="text-xs text-gray-600 font-semibold mb-2 text-center">
+              💡 Ayuda Extra (Revela Parejas)
+            </div>
+            <PowerUpButtons
+              onPowerUpUsed={handlePowerUp}
+              disabled={isPreview || gameOver || powerUpUsed}
+            />
+            {powerUpUsed && (
+              <div className="text-xs text-center text-green-600 font-semibold mt-2">
+                ✅ Ayuda usada en este nivel
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 flex items-center justify-center">

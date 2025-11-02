@@ -3,6 +3,7 @@ import { RotateCcw, Share2, Trophy, List, ArrowLeft } from 'lucide-react';
 import { GameCard } from './GameCard';
 import { Leaderboard } from './Leaderboard';
 import { PowerUpButtons } from './PowerUpButtons';
+import { CoinShop } from './CoinShop';
 import { Card, PREVIEW_TIME, FLIP_DELAY, GameMetrics, BestScore } from '../types';
 import { createConfetti } from '../utils/confetti';
 import { getSeedFromURLorToday, shuffleWithSeed } from '../lib/seed';
@@ -40,6 +41,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
   const [hintCards, setHintCards] = useState<number[]>([]);
   const [consecutiveMisses, setConsecutiveMisses] = useState(0);
   const [powerUpUsed, setPowerUpUsed] = useState(false);
+  const [showCoinShop, setShowCoinShop] = useState(false);
 
   const isCheckingRef = useRef(false);
   const timerRef = useRef<number | null>(null);
@@ -420,6 +422,12 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
                 ✅ Ayuda usada en este nivel
               </div>
             )}
+            <button
+              onClick={() => setShowCoinShop(true)}
+              className="w-full mt-3 bg-gradient-to-r from-yellow-400 to-orange-500 text-white py-2 px-4 rounded-lg font-bold text-sm shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center justify-center gap-2"
+            >
+              💰 Comprar Monedas
+            </button>
           </div>
         )}
       </div>
@@ -447,12 +455,20 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
             <div className="text-6xl mb-4">😢</div>
             <h3 className="text-3xl font-bold text-red-600 mb-2">Game Over</h3>
             <p className="text-gray-600 mb-6">Se acabó el tiempo</p>
-            <button
-              onClick={handleRestart}
-              className="w-full bg-gradient-to-r from-orange-500 to-red-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
-            >
-              Reintentar Nivel
-            </button>
+            <div className="flex gap-3">
+              <button
+                onClick={onBackToMenu}
+                className="flex-1 bg-gray-500 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
+              >
+                Salir
+              </button>
+              <button
+                onClick={handleRestart}
+                className="flex-1 bg-gradient-to-r from-orange-500 to-red-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all"
+              >
+                Reintentar
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -510,6 +526,12 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
             setShowLeaderboard(false);
             handleRestart();
           }}
+        />
+      )}
+
+      {showCoinShop && (
+        <CoinShop
+          onClose={() => setShowCoinShop(false)}
         />
       )}
     </div>

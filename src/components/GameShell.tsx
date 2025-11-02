@@ -3,6 +3,7 @@ import { GameCore } from './GameCore';
 import { completeLevel, getWorldProgress, WorldUnlockEvent } from '../lib/progression';
 import { getLevelConfig } from '../lib/levels';
 import { WorldUnlockModal } from './WorldUnlockModal';
+import { WorldIntroScreen } from './WorldIntroScreen';
 
 type BannerType = 'level' | 'end' | null;
 
@@ -18,8 +19,11 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
   const [showBanner, setShowBanner] = useState(false);
   const [bannerType, setBannerType] = useState<BannerType>(null);
   const [worldUnlockEvent, setWorldUnlockEvent] = useState<WorldUnlockEvent | null>(null);
+  const [showWorldIntro, setShowWorldIntro] = useState(false);
+  const [introWorld, setIntroWorld] = useState(1);
 
   const completedRef = useRef(false);
+  const lastWorldRef = useRef<number>(getLevelConfig(initialLevel)?.world || 1);
 
   const onLevelCompleted = useCallback(async () => {
     if (completedRef.current) {
@@ -50,6 +54,13 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
   useEffect(() => {
     console.log('[GameShell] LEVEL_CHANGED', level);
     completedRef.current = false;
+
+    const currentConfig = getLevelConfig(level);
+    if (currentConfig && currentConfig.world !== lastWorldRef.current && currentConfig.level === 1) {
+      setIntroWorld(currentConfig.world);
+      setShowWorldIntro(true);
+      lastWorldRef.current = currentConfig.world;
+    }
   }, [level]);
 
   const handleNextLevel = useCallback(() => {
@@ -64,20 +75,37 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
   const handleWorldUnlockContinue = useCallback(() => {
     setWorldUnlockEvent(null);
     const progress = getWorldProgress();
+    const newLevelConfig = getLevelConfig(progress.currentLevel);
+    if (newLevelConfig) {
+      setIntroWorld(newLevelConfig.world);
+      setShowWorldIntro(true);
+      lastWorldRef.current = newLevelConfig.world;
+    }
     setLevel(progress.currentLevel);
+  }, []);
+
+  const handleStartWorld = useCallback(() => {
+    setShowWorldIntro(false);
   }, []);
 
   console.log('[GameShell] Render', { level, nextLevel, showBanner, bannerType });
 
   return (
     <>
-      <section key={`level-${level}`}>
-        <GameCore
-          level={level}
-          onComplete={onLevelCompleted}
-          onBackToMenu={onBackToMenu}
+      {showWorldIntro ? (
+        <WorldIntroScreen
+          world={introWorld}
+          onStart={handleStartWorld}
         />
-      </section>
+      ) : (
+        <section key={`level-${level}`}>
+          <GameCore
+            level={level}
+            onComplete={onLevelCompleted}
+            onBackToMenu={onBackToMenu}
+          />
+        </section>
+      )}
 
       {worldUnlockEvent && (
         <WorldUnlockModal

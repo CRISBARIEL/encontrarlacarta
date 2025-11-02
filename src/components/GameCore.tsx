@@ -36,12 +36,15 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
   const [crewId, setCrewId] = useState(() => getCrewIdFromURL());
   const [finalTime, setFinalTime] = useState(0);
   const [finalMoves, setFinalMoves] = useState(0);
+  const [hintCards, setHintCards] = useState<number[]>([]);
+  const [consecutiveMisses, setConsecutiveMisses] = useState(0);
 
   const isCheckingRef = useRef(false);
   const timerRef = useRef<number | null>(null);
   const previewTimerRef = useRef<number | null>(null);
   const elapsedTimerRef = useRef<number | null>(null);
   const gameStartTimeRef = useRef<number>(0);
+  const hintTimeoutRef = useRef<number | null>(null);
 
   const initializeLevel = useCallback(() => {
     console.log('[GameCore] initializeLevel', { level, seed });
@@ -69,6 +72,8 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
     setMoves(0);
     setTimeElapsed(0);
     setShowWinModal(false);
+    setHintCards([]);
+    setConsecutiveMisses(0);
     gameStartTimeRef.current = 0;
 
     if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
@@ -97,6 +102,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
       console.log('[GameCore] unmount for level', level);
       if (timerRef.current) clearInterval(timerRef.current);
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);
+      if (hintTimeoutRef.current) clearTimeout(hintTimeoutRef.current);
     };
   }, [level, initializeLevel]);
 
@@ -214,8 +220,11 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
         );
         setMatchedPairs((prev) => prev + 1);
         setFlippedCards([]);
+        setConsecutiveMisses(0);
+        setHintCards([]);
         isCheckingRef.current = false;
       } else {
+        setConsecutiveMisses((prev) => prev + 1);
         setTimeout(() => {
           setCards((prev) =>
             prev.map((c) =>
@@ -230,6 +239,36 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
       }
     }
   }, [cards, flippedCards, isPreview]);
+
+  useEffect(() => {
+    if (consecutiveMisses >= 4 && !isPreview && !gameOver && hintCards.length === 0) {
+      const unmatchedCards = cards.filter(c => !c.isMatched && !c.isFlipped);
+
+      if (unmatchedCards.length >= 2) {
+        const imageIndexes = new Map<number, number[]>();
+        unmatchedCards.forEach(card => {
+          if (!imageIndexes.has(card.imageIndex)) {
+            imageIndexes.set(card.imageIndex, []);
+          }
+          imageIndexes.get(card.imageIndex)!.push(card.id);
+        });
+
+        for (const [, cardIds] of imageIndexes) {
+          if (cardIds.length >= 2) {
+            const [first, second] = cardIds.slice(0, 2);
+            setHintCards([first, second]);
+
+            if (hintTimeoutRef.current) clearTimeout(hintTimeoutRef.current);
+            hintTimeoutRef.current = window.setTimeout(() => {
+              setHintCards([]);
+            }, 3000);
+
+            break;
+          }
+        }
+      }
+    }
+  }, [consecutiveMisses, isPreview, gameOver, cards, hintCards.length]);
 
   const handleRestart = useCallback(() => {
     initializeLevel();
@@ -342,6 +381,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
                 image={selectedImages[card.imageIndex]}
                 onClick={handleCardClick}
                 disabled={isPreview || isCheckingRef.current}
+                showHint={hintCards.includes(card.id)}
               />
             ))}
           </div>

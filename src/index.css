@@ -27,3 +27,16 @@
 .rotate-y-180 {
   transform: rotateY(180deg);
 }
+
+.hint-pulse {
+  animation: hint-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes hint-pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}

@@ -1,21 +1,20 @@
-<svg width="500" height="200" viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
+<svg width="260" height="90" viewBox="0 0 260 90" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#00E0FF"/>
-      <stop offset="100%" stop-color="#FF2EC4"/>
+      <stop offset="100%" stop-color="#B100FF"/>
     </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
   </defs>
 
-  <rect width="500" height="200" fill="transparent"/>
-
-  <!-- Glow -->
-  <text x="250" y="120" font-family="Anton, Impact, sans-serif" font-size="70" text-anchor="middle"
-    fill="none" stroke="url(#grad)" stroke-width="8" opacity="0.8">TWIN CLASH</text>
-
-  <!-- Main text -->
-  <text x="250" y="120" font-family="Anton, Impact, sans-serif" font-size="70" text-anchor="middle"
-    fill="url(#grad)" style="letter-spacing:2px;">TWIN CLASH</text>
-
-  <!-- Lightning bolt -->
-  <text x="250" y="65" font-size="45" text-anchor="middle" fill="#FFD92C">⚡</text>
+  <rect width="260" height="90" rx="12" fill="#0A0D12"/>
+  <text x="130" y="55" font-family="Impact, Anton, sans-serif" font-size="48" text-anchor="middle" fill="url(#g2)" filter="url(#glow)" style="letter-spacing: 1px;">
+    TWIN CLASH
+  </text>
 </svg>

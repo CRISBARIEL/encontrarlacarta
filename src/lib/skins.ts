@@ -81,15 +81,21 @@ export async function getUserThemes(): Promise<UserThemes> {
   }
 
   if (!data) {
-    const { data: newData } = await supabase
+    const { data: newData, error: insertError } = await supabase
       .from('user_themes')
-      .insert({
+      .upsert({
         client_id: clientId,
         owned_themes: ['default'],
         equipped_theme: 'default',
+      }, {
+        onConflict: 'client_id'
       })
       .select('owned_themes, equipped_theme')
-      .single();
+      .maybeSingle();
+
+    if (insertError) {
+      console.error('Error upserting themes:', insertError);
+    }
 
     return newData || { owned_themes: ['default'], equipped_theme: 'default' };
   }

@@ -19,11 +19,12 @@ interface GameCoreProps {
 }
 
 export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = false }: GameCoreProps) => {
+  const levelConfig = getLevelConfig(level);
   const [cards, setCards] = useState<Card[]>([]);
   const [flippedCards, setFlippedCards] = useState<number[]>([]);
   const [matchedPairs, setMatchedPairs] = useState(0);
   const [isPreview, setIsPreview] = useState(true);
-  const [timeLeft, setTimeLeft] = useState(LEVEL_TIME_LIMITS[level as keyof typeof LEVEL_TIME_LIMITS]);
+  const [timeLeft, setTimeLeft] = useState(levelConfig?.timeLimit || 60);
   const [gameOver, setGameOver] = useState(false);
   const [moves, setMoves] = useState(0);
   const [timeElapsed, setTimeElapsed] = useState(0);
@@ -133,7 +134,8 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
   }, [isPreview, gameOver]);
 
   useEffect(() => {
-    if (matchedPairs === PAIRS_PER_LEVEL && matchedPairs > 0) {
+    const totalPairs = levelConfig?.pairs || 6;
+    if (matchedPairs === totalPairs && matchedPairs > 0) {
       console.log('[GameCore] LEVEL COMPLETED', { level, matchedPairs, moves, timeElapsed });
       if (timerRef.current) clearInterval(timerRef.current);
       if (previewTimerRef.current) clearTimeout(previewTimerRef.current);

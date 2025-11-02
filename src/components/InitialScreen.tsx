@@ -75,8 +75,7 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
           <img
             src="/logo-twinclash.svg"
             alt="Twin Clash"
-            className="game-title"
-            style={{ width: '85%', maxWidth: '420px' }}
+            style={{ width: '75%', maxWidth: '420px', margin: '0 auto' }}
           />
         </div>
         <p className="text-center text-gray-600 mb-6 text-sm font-medium">

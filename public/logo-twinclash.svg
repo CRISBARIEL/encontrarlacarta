@@ -1,11 +1,17 @@
-<svg width="260" height="90" viewBox="0 0 260 90" xmlns="http://www.w3.org/2000/svg">
+<svg width="500" height="200" viewBox="0 0 500 200" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="g2" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00E0FF"/>
-      <stop offset="100%" stop-color="#B100FF"/>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#001935"/>
+      <stop offset="100%" stop-color="#006BCE"/>
     </linearGradient>
-    <filter id="glow">
-      <feGaussianBlur stdDeviation="3.5" result="coloredBlur"/>
+
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FF7A22"/>
+      <stop offset="100%" stop-color="#4CC7FF"/>
+    </linearGradient>
+
+    <filter id="outerGlow">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
       <feMerge>
         <feMergeNode in="coloredBlur"/>
         <feMergeNode in="SourceGraphic"/>
@@ -13,8 +19,28 @@
     </filter>
   </defs>
 
-  <rect width="260" height="90" rx="12" fill="#0A0D12"/>
-  <text x="130" y="55" font-family="Impact, Anton, sans-serif" font-size="48" text-anchor="middle" fill="url(#g2)" filter="url(#glow)" style="letter-spacing: 1px;">
+  <rect width="500" height="200" fill="url(#bgGrad)" rx="8"/>
+
+  <text x="250" y="130"
+        font-family="Impact, Anton, sans-serif"
+        font-size="80"
+        text-anchor="middle"
+        fill="none"
+        stroke="url(#accent)"
+        stroke-width="12"
+        opacity="0.9"
+        filter="url(#outerGlow)">
     TWIN CLASH
   </text>
+
+  <text x="250" y="130"
+        font-family="Impact, Anton, sans-serif"
+        font-size="80"
+        text-anchor="middle"
+        fill="#FFFFFF"
+        style="letter-spacing: 2px;">
+    TWIN CLASH
+  </text>
+
+  <rect x="110" y="145" width="280" height="6" rx="3" fill="#FF7A22" opacity="0.85"/>
 </svg>

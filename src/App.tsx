@@ -3,9 +3,12 @@ import { InitialScreen } from './components/InitialScreen';
 import { GameShell } from './components/GameShell';
 import { GameCore } from './components/GameCore';
 import { DuelScene } from './components/DuelScene';
+import { WorldMap } from './components/WorldMap';
+import { LevelSelector } from './components/LevelSelector';
 import { playMusic, stopMusic } from './utils/musicManager';
+import { getWorldProgress } from './lib/progression';
 
-type Screen = 'menu' | 'game' | 'daily' | 'duel';
+type Screen = 'menu' | 'game' | 'daily' | 'duel' | 'worldmap' | 'levelselect';
 
 function App() {
   const [screen, setScreen] = useState<Screen>(() => {
@@ -17,8 +20,10 @@ function App() {
     return 'menu';
   });
   const [selectedLevel, setSelectedLevel] = useState(1);
+  const [selectedWorld, setSelectedWorld] = useState(1);
   const [musicEnabled, setMusicEnabled] = useState(false);
   const musicStartedRef = useRef(false);
+  const [worldProgress, setWorldProgress] = useState(() => getWorldProgress());
   // removed custom photo feature
 
   useEffect(() => {
@@ -58,18 +63,47 @@ function App() {
     <>
       {screen === 'menu' && (
         <InitialScreen
-          onStartGame={handleStartGame}
+          onStartGame={() => setScreen('worldmap')}
           onStartDailyChallenge={handleStartDailyChallenge}
           onStartDuel={handleStartDuel}
           musicEnabled={musicEnabled}
           onMusicToggle={handleMusicToggle}
         />
       )}
+      {screen === 'worldmap' && (
+        <WorldMap
+          currentWorld={worldProgress.currentWorld}
+          currentLevel={worldProgress.currentLevel}
+          worldsCompleted={worldProgress.worldsCompleted}
+          onSelectWorld={(world) => {
+            setSelectedWorld(world);
+            setScreen('levelselect');
+          }}
+          onBackToMenu={() => {
+            setWorldProgress(getWorldProgress());
+            setScreen('menu');
+          }}
+        />
+      )}
+      {screen === 'levelselect' && (
+        <LevelSelector
+          world={selectedWorld}
+          currentLevel={worldProgress.currentLevel}
+          onSelectLevel={(levelId) => {
+            setSelectedLevel(levelId);
+            setScreen('game');
+          }}
+          onBack={() => setScreen('worldmap')}
+        />
+      )}
       {screen === 'game' && (
         <GameShell
           key={selectedLevel}
           initialLevel={selectedLevel}
-          onBackToMenu={handleBackToMenu}
+          onBackToMenu={() => {
+            setWorldProgress(getWorldProgress());
+            handleBackToMenu();
+          }}
         />
       )}
       {screen === 'daily' && (

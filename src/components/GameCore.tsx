@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { RotateCcw, Share2, Trophy, List, ArrowLeft } from 'lucide-react';
-// removed custom photo feature
 import { GameCard } from './GameCard';
 import { Leaderboard } from './Leaderboard';
-import { Card, LEVEL_TIME_LIMITS, PREVIEW_TIME, FLIP_DELAY, PAIRS_PER_LEVEL, GameMetrics, BestScore } from '../types';
-import { getImagesForLevel } from '../utils/imageManager';
+import { Card, PREVIEW_TIME, FLIP_DELAY, GameMetrics, BestScore } from '../types';
 import { createConfetti } from '../utils/confetti';
 import { getSeedFromURLorToday, shuffleWithSeed } from '../lib/seed';
 import { submitScoreAndReward, getCrewIdFromURL, setCrewIdInURL } from '../lib/api';
 import { addCoins } from '../lib/progression';
+import { getLevelConfig } from '../lib/levels';
+import { getThemeImages } from '../lib/themes';
 
 interface GameCoreProps {
   level: number;
@@ -44,8 +44,16 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
 
   const initializeLevel = useCallback(() => {
     console.log('[GameCore] initializeLevel', { level, seed });
-    const levelImages = getImagesForLevel(level);
-    const cardPairs = levelImages.flatMap((img, idx) => [
+
+    const config = getLevelConfig(level);
+    const pairs = config?.pairs || 6;
+    const timeLimit = config?.timeLimit || 60;
+    const theme = config?.theme || 'nature';
+
+    const themeImages = getThemeImages(theme);
+    const selectedImages = themeImages.slice(0, pairs);
+
+    const cardPairs = selectedImages.flatMap((img, idx) => [
       { id: idx * 2, imageIndex: idx, isFlipped: false, isMatched: false },
       { id: idx * 2 + 1, imageIndex: idx, isFlipped: false, isMatched: false },
     ]);
@@ -56,7 +64,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
     setMatchedPairs(0);
     setIsPreview(true);
     setGameOver(false);
-    setTimeLeft(LEVEL_TIME_LIMITS[level as keyof typeof LEVEL_TIME_LIMITS]);
+    setTimeLeft(timeLimit);
     setMoves(0);
     setTimeElapsed(0);
     setShowWinModal(false);
@@ -259,8 +267,12 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
     }
   }, [seed, finalTime, finalMoves, crewId]);
 
-  const levelImages = getImagesForLevel(level);
-  // removed custom photo feature
+  const config = getLevelConfig(level);
+  const theme = config?.theme || 'nature';
+  const themeImages = getThemeImages(theme);
+  const pairs = config?.pairs || 6;
+  const selectedImages = themeImages.slice(0, pairs);
+  const timeLimit = config?.timeLimit || 60;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 flex flex-col p-4">
@@ -281,7 +293,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
             {isDailyChallenge ? 'Reto Diario' : `Nivel ${level}`}
           </h2>
           <div className={`text-2xl font-bold ${timeLeft <= 10 ? 'text-red-600 animate-pulse' : 'text-blue-600'}`}>
-            {isPreview ? `Preview: ${Math.max(0, Math.ceil(timeLeft - (LEVEL_TIME_LIMITS[level as keyof typeof LEVEL_TIME_LIMITS] - PREVIEW_TIME)))}s` : `${timeLeft}s`}
+            {isPreview ? `Preview: ${Math.max(0, Math.ceil(timeLeft - (timeLimit - PREVIEW_TIME)))}s` : `${timeLeft}s`}
           </div>
         </div>
         {isDailyChallenge && (
@@ -325,7 +337,7 @@ export const GameCore = ({ level, onComplete, onBackToMenu, isDailyChallenge = f
               <GameCard
                 key={card.id}
                 card={{ ...card, isFlipped: isPreview || card.isFlipped }}
-                image={levelImages[card.imageIndex]}
+                image={selectedImages[card.imageIndex]}
                 onClick={handleCardClick}
                 disabled={isPreview || isCheckingRef.current}
               />

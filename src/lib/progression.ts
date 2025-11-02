@@ -1,4 +1,6 @@
 import { supabase, getOrCreateClientId } from './supabase';
+import { getLevelConfig } from './levels';
+import { createConfetti } from '../utils/confetti';
 
 export interface UserProfile {
   client_id: string;
@@ -6,13 +8,25 @@ export interface UserProfile {
   owned_skins: string[];
   equipped_skin: string | null;
   last_daily_at: string | null;
+  current_world: number;
+  current_level: number;
+  worlds_completed: number;
   updated_at: string;
+}
+
+export interface WorldProgress {
+  currentWorld: number;
+  currentLevel: number;
+  worldsCompleted: number;
 }
 
 const STORAGE_KEY_COINS = 'user_coins';
 const STORAGE_KEY_LAST_DAILY = 'last_daily_at';
 const STORAGE_KEY_OWNED_SKINS = 'owned_skins';
 const STORAGE_KEY_EQUIPPED_SKIN = 'equipped_skin';
+const STORAGE_KEY_CURRENT_WORLD = 'current_world';
+const STORAGE_KEY_CURRENT_LEVEL = 'current_level';
+const STORAGE_KEY_WORLDS_COMPLETED = 'worlds_completed';
 
 export function getLocalCoins(): number {
   const stored = localStorage.getItem(STORAGE_KEY_COINS);
@@ -108,6 +122,58 @@ export function equipSkin(skinId: string): boolean {
   return true;
 }
 
+export function getWorldProgress(): WorldProgress {
+  const currentWorld = parseInt(localStorage.getItem(STORAGE_KEY_CURRENT_WORLD) || '1', 10);
+  const currentLevel = parseInt(localStorage.getItem(STORAGE_KEY_CURRENT_LEVEL) || '1', 10);
+  const worldsCompleted = parseInt(localStorage.getItem(STORAGE_KEY_WORLDS_COMPLETED) || '0', 10);
+
+  return { currentWorld, currentLevel, worldsCompleted };
+}
+
+export function setWorldProgress(progress: Partial<WorldProgress>): void {
+  if (progress.currentWorld !== undefined) {
+    localStorage.setItem(STORAGE_KEY_CURRENT_WORLD, progress.currentWorld.toString());
+  }
+  if (progress.currentLevel !== undefined) {
+    localStorage.setItem(STORAGE_KEY_CURRENT_LEVEL, progress.currentLevel.toString());
+  }
+  if (progress.worldsCompleted !== undefined) {
+    localStorage.setItem(STORAGE_KEY_WORLDS_COMPLETED, progress.worldsCompleted.toString());
+  }
+  syncToSupabase();
+}
+
+export async function completeLevel(levelId: number): Promise<void> {
+  const config = getLevelConfig(levelId);
+  if (!config) return;
+
+  addCoins(config.unlockReward);
+
+  const progress = getWorldProgress();
+
+  if (config.level === 5) {
+    const nextWorld = config.world + 1;
+    setWorldProgress({
+      worldsCompleted: config.world,
+      currentWorld: nextWorld <= 5 ? nextWorld : config.world,
+      currentLevel: nextWorld <= 5 ? (nextWorld - 1) * 5 + 1 : levelId,
+    });
+
+    createConfetti();
+
+    if (nextWorld <= 5) {
+      alert(`¡Mundo ${config.world} completado! 🎉\n\n🔓 Desbloqueado: Mundo ${nextWorld}\n💰 +${config.unlockReward} monedas`);
+    } else {
+      alert('¡JUEGO COMPLETADO! 🏆\n\n¡Eres un maestro de la memoria!\n💰 +${config.unlockReward} monedas');
+    }
+  } else {
+    const nextLevel = levelId + 1;
+    setWorldProgress({
+      currentLevel: nextLevel,
+    });
+  }
+}
+
 export async function syncToSupabase(): Promise<void> {
   try {
     const clientId = getOrCreateClientId();
@@ -115,6 +181,7 @@ export async function syncToSupabase(): Promise<void> {
     const ownedSkins = getOwnedSkins();
     const equippedSkin = getEquippedSkin();
     const lastDaily = getLastDailyAt();
+    const progress = getWorldProgress();
 
     await supabase.from('profiles').upsert({
       client_id: clientId,
@@ -122,6 +189,9 @@ export async function syncToSupabase(): Promise<void> {
       owned_skins: ownedSkins,
       equipped_skin: equippedSkin,
       last_daily_at: lastDaily,
+      current_world: progress.currentWorld,
+      current_level: progress.currentLevel,
+      worlds_completed: progress.worldsCompleted,
       updated_at: new Date().toISOString(),
     });
   } catch (err) {
@@ -154,6 +224,16 @@ export async function loadFromSupabase(): Promise<void> {
 
       if (data.last_daily_at) {
         setLastDailyAt(data.last_daily_at);
+      }
+
+      if (data.current_world !== undefined) {
+        localStorage.setItem(STORAGE_KEY_CURRENT_WORLD, data.current_world.toString());
+      }
+      if (data.current_level !== undefined) {
+        localStorage.setItem(STORAGE_KEY_CURRENT_LEVEL, data.current_level.toString());
+      }
+      if (data.worlds_completed !== undefined) {
+        localStorage.setItem(STORAGE_KEY_WORLDS_COMPLETED, data.worlds_completed.toString());
       }
     }
   } catch (err) {

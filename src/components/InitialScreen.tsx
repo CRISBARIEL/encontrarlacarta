@@ -7,7 +7,7 @@ import { getEquippedTheme, getSkinById } from '../lib/skins';
 import { playSoundZap } from '../utils/soundManager';
 
 interface InitialScreenProps {
-  onStartGame: (level: number) => void;
+  onStartGame: () => void;
   onStartDailyChallenge: () => void;
   onStartDuel: () => void;
   musicEnabled: boolean;
@@ -15,7 +15,6 @@ interface InitialScreenProps {
 }
 
 export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel, musicEnabled, onMusicToggle }: InitialScreenProps) => {
-  const [selectedLevel, setSelectedLevel] = useState(1);
   const [showShop, setShowShop] = useState(false);
   const [coins, setCoins] = useState(0);
   const [showDailyReward, setShowDailyReward] = useState(false);
@@ -102,31 +101,14 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
           Tienda de Temas
         </button>
 
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-3">
-              Selecciona el Nivel
-            </label>
-            <div className="grid grid-cols-5 gap-2">
-              {[1, 2, 3, 4, 5].map((level) => (
-                <button
-                  type="button"
-                  key={level}
-                  onClick={() => setSelectedLevel(level)}
-                  className={`py-3 px-4 rounded-xl font-bold transition-all ${
-                    selectedLevel === level
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg scale-105'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-                >
-                  {level}
-                </button>
-              ))}
-            </div>
-            <div className="mt-2 text-xs text-gray-500 text-center">
-              Tiempo: {[70, 60, 50, 40, 30][selectedLevel - 1]}s
-            </div>
-          </div>
+        <div className="space-y-4">
+          <button
+            type="button"
+            onClick={onStartGame}
+            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
+          >
+            🗺️ Aventura (25 Niveles)
+          </button>
 
           <div className="flex items-center justify-between bg-gray-50 rounded-xl p-4">
             <label className="flex items-center cursor-pointer">
@@ -141,14 +123,6 @@ export const InitialScreen = ({ onStartGame, onStartDailyChallenge, onStartDuel,
               </span>
             </label>
           </div>
-
-          <button
-            type="button"
-            onClick={() => onStartGame(selectedLevel)}
-            className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all hover:scale-105"
-          >
-            🎮 Jugar
-          </button>
 
           <button
             type="button"

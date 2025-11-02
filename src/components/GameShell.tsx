@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameCore } from './GameCore';
-import { TOTAL_LEVELS } from '../types';
+import { completeLevel, getWorldProgress } from '../lib/progression';
+import { getLevelConfig } from '../lib/levels';
 
 type BannerType = 'level' | 'end' | null;
 
@@ -11,8 +12,6 @@ interface GameShellProps {
 }
 
 export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
-  const MAX = TOTAL_LEVELS;
-
   const [level, setLevel] = useState(initialLevel);
   const [nextLevel, setNextLevel] = useState<number | null>(null);
   const [showBanner, setShowBanner] = useState(false);
@@ -20,19 +19,29 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
 
   const completedRef = useRef(false);
 
-  const onLevelCompleted = useCallback(() => {
+  const onLevelCompleted = useCallback(async () => {
     if (completedRef.current) {
       console.log('[GameShell] onLevelCompleted: already completed, skipping');
       return;
     }
     completedRef.current = true;
 
-    const candidate = level < MAX ? level + 1 : 1;
-    console.log('[GameShell] onLevelCompleted', { level, candidate });
-    setNextLevel(candidate);
-    setBannerType(level < MAX ? 'level' : 'end');
-    setShowBanner(true);
-  }, [level, MAX]);
+    await completeLevel(level);
+
+    const config = getLevelConfig(level);
+    const progress = getWorldProgress();
+
+    if (config && config.level === 5 && config.world === 5) {
+      setBannerType('end');
+      setNextLevel(1);
+      setShowBanner(true);
+    } else {
+      const nextLevelId = progress.currentLevel;
+      setNextLevel(nextLevelId);
+      setBannerType('level');
+      setShowBanner(true);
+    }
+  }, [level]);
 
   useEffect(() => {
     console.log('[GameShell] LEVEL_CHANGED', level);

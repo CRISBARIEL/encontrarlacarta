@@ -35,7 +35,7 @@ export const SKINS: Skin[] = [
   {
     id: 'ruby',
     name: 'Rubí',
-    price: 150,
+    price: 180,
     cardBackColor: 'bg-gradient-to-br from-red-400 to-rose-600',
     cardBorderColor: 'border-red-300',
     description: 'Pasión y energía',
@@ -43,7 +43,7 @@ export const SKINS: Skin[] = [
   {
     id: 'midnight',
     name: 'Medianoche',
-    price: 200,
+    price: 220,
     cardBackColor: 'bg-gradient-to-br from-indigo-600 to-purple-800',
     cardBorderColor: 'border-indigo-400',
     description: 'Misterio nocturno',

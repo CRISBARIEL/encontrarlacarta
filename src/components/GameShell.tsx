@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { GameCore } from './GameCore';
-import { completeLevel, getWorldProgress } from '../lib/progression';
+import { completeLevel, getWorldProgress, WorldUnlockEvent } from '../lib/progression';
 import { getLevelConfig } from '../lib/levels';
+import { WorldUnlockModal } from './WorldUnlockModal';
 
 type BannerType = 'level' | 'end' | null;
 
@@ -16,6 +17,7 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
   const [nextLevel, setNextLevel] = useState<number | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const [bannerType, setBannerType] = useState<BannerType>(null);
+  const [worldUnlockEvent, setWorldUnlockEvent] = useState<WorldUnlockEvent | null>(null);
 
   const completedRef = useRef(false);
 
@@ -26,12 +28,14 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
     }
     completedRef.current = true;
 
-    await completeLevel(level);
+    const unlockEvent = await completeLevel(level);
 
     const config = getLevelConfig(level);
     const progress = getWorldProgress();
 
-    if (config && config.level === 5 && config.world === 5) {
+    if (unlockEvent) {
+      setWorldUnlockEvent(unlockEvent);
+    } else if (config && config.level === 5 && config.world === 5) {
       setBannerType('end');
       setNextLevel(1);
       setShowBanner(true);
@@ -57,6 +61,12 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
     setBannerType(null);
   }, [nextLevel, level]);
 
+  const handleWorldUnlockContinue = useCallback(() => {
+    setWorldUnlockEvent(null);
+    const progress = getWorldProgress();
+    setLevel(progress.currentLevel);
+  }, []);
+
   console.log('[GameShell] Render', { level, nextLevel, showBanner, bannerType });
 
   return (
@@ -69,7 +79,17 @@ export const GameShell = ({ initialLevel, onBackToMenu }: GameShellProps) => {
         />
       </section>
 
-      {showBanner && nextLevel != null && (
+      {worldUnlockEvent && (
+        <WorldUnlockModal
+          completedWorld={worldUnlockEvent.completedWorld}
+          unlockedWorld={worldUnlockEvent.unlockedWorld}
+          coinsEarned={worldUnlockEvent.coinsEarned}
+          isGameComplete={worldUnlockEvent.isGameComplete}
+          onContinue={handleWorldUnlockContinue}
+        />
+      )}
+
+      {showBanner && nextLevel != null && !worldUnlockEvent && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl p-8 max-w-sm w-full text-center shadow-2xl pointer-events-auto">
             {bannerType === 'level' ? (

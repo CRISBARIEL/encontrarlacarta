@@ -143,9 +143,16 @@ export function setWorldProgress(progress: Partial<WorldProgress>): void {
   syncToSupabase();
 }
 
-export async function completeLevel(levelId: number): Promise<void> {
+export interface WorldUnlockEvent {
+  completedWorld: number;
+  unlockedWorld: number;
+  coinsEarned: number;
+  isGameComplete: boolean;
+}
+
+export async function completeLevel(levelId: number): Promise<WorldUnlockEvent | null> {
   const config = getLevelConfig(levelId);
-  if (!config) return;
+  if (!config) return null;
 
   addCoins(config.unlockReward);
 
@@ -162,9 +169,19 @@ export async function completeLevel(levelId: number): Promise<void> {
     createConfetti();
 
     if (nextWorld <= 5) {
-      alert(`¡Mundo ${config.world} completado! 🎉\n\n🔓 Desbloqueado: Mundo ${nextWorld}\n💰 +${config.unlockReward} monedas`);
+      return {
+        completedWorld: config.world,
+        unlockedWorld: nextWorld,
+        coinsEarned: config.unlockReward,
+        isGameComplete: false,
+      };
     } else {
-      alert('¡JUEGO COMPLETADO! 🏆\n\n¡Eres un maestro de la memoria!\n💰 +${config.unlockReward} monedas');
+      return {
+        completedWorld: config.world,
+        unlockedWorld: config.world,
+        coinsEarned: config.unlockReward,
+        isGameComplete: true,
+      };
     }
   } else {
     const nextLevel = levelId + 1;
@@ -172,6 +189,8 @@ export async function completeLevel(levelId: number): Promise<void> {
       currentLevel: nextLevel,
     });
   }
+
+  return null;
 }
 
 export async function syncToSupabase(): Promise<void> {
